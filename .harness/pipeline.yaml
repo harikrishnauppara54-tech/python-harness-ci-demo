@@ -19,78 +19,60 @@ pipeline:
     - stage:
         name: Python Build and Docker Push
         identifier: python_build_docker_push
-        description: Build, test and push Python app to Docker Hub
+        description: Test Python app and push to Docker Hub
         type: CI
         spec:
           cloneCodebase: true
+
           platform:
             os: Linux
             arch: Amd64
+
           runtime:
             type: Cloud
             spec: {}
 
           execution:
             steps:
-
-              # STEP 1: Install Dependencies
+              # STEP 1: Install, Test and Verify
               - step:
                   type: Run
-                  name: Install Python Dependencies
-                  identifier: install_python_dependencies
+                  name: Test Python Application
+                  identifier: test_python_application
                   spec:
                     shell: Sh
                     command: |-
-                      set -e
+                      set -eu
 
-                      echo "=== Checking Python Version ==="
+                      echo "=== Python Version ==="
                       python3 --version
 
-                      echo "=== Checking Project Files ==="
+                      echo "=== Project Files ==="
                       pwd
                       ls -la
 
-                      echo "=== Creating Virtual Environment ==="
+                      echo "=== Verify Required Files ==="
+                      test -f app.py
+                      test -f requirements.txt
+                      test -f test_app.py
+                      test -f Dockerfile
+
+                      echo "=== Create Python Virtual Environment ==="
                       python3 -m venv /tmp/python-ci-venv
 
-                      echo "=== Installing Dependencies ==="
-                      /tmp/python-ci-venv/bin/python -m pip install --upgrade pip
+                      echo "=== Install Dependencies ==="
                       /tmp/python-ci-venv/bin/python -m pip install -r requirements.txt
                       /tmp/python-ci-venv/bin/python -m pip install pytest
 
-                      echo "=== Dependencies Installed Successfully ==="
-
-              # STEP 2: Run Python Unit Tests
-              - step:
-                  type: Run
-                  name: Run Python Unit Tests
-                  identifier: run_python_tests
-                  spec:
-                    shell: Sh
-                    command: |-
-                      set -e
-
-                      echo "=== Running Python Unit Tests ==="
+                      echo "=== Run Python Tests ==="
                       /tmp/python-ci-venv/bin/python -m pytest test_app.py -v
 
-                      echo "=== All Unit Tests Passed ==="
+                      echo "=== Verify Flask Application ==="
+                      /tmp/python-ci-venv/bin/python -c "from app import app; c=app.test_client(); assert c.get('/').status_code == 200; assert c.get('/health').status_code == 200; print('Application verified')"
 
-              # STEP 3: Verify Python Application
-              - step:
-                  type: Run
-                  name: Verify Python Application
-                  identifier: verify_python_app
-                  spec:
-                    shell: Sh
-                    command: |-
-                      set -e
+                      echo "=== Python Tests and Verification Passed ==="
 
-                      echo "=== Verifying Flask App ==="
-                      /tmp/python-ci-venv/bin/python -c "from app import app; c = app.test_client(); assert c.get('/').status_code == 200; assert c.get('/health').status_code == 200; print('Flask endpoints verified')"
-
-                      echo "=== Application Verification Passed ==="
-
-              # STEP 4: Build and Push to Docker Hub
+              # STEP 2: Build and Push Docker Image
               - step:
                   type: BuildAndPushDockerRegistry
                   name: Build and Push Docker Image
@@ -104,19 +86,16 @@ pipeline:
                     dockerfile: Dockerfile
                     context: .
 
-              # STEP 5: Display Image Details
+              # STEP 3: Display Image Details
               - step:
                   type: Run
-                  name: Display Docker Image Details
-                  identifier: display_docker_image
+                  name: Display Image Details
+                  identifier: display_image
                   spec:
                     shell: Sh
                     command: |-
-                      echo "======================================"
-                      echo "DOCKER BUILD AND PUSH COMPLETED"
-                      echo "======================================"
+                      echo "=== Docker Push Step Succeeded ==="
                       echo "Repository: hk48/python-harness-ci-demo"
-                      echo "Tag: <+pipeline.sequenceId>"
-                      echo "Tag: latest"
-                      echo "Docker Hub: https://hub.docker.com/r/hk48/python-harness-ci-demo"
-                      echo "======================================"
+                      echo "Build Tag: <+pipeline.sequenceId>"
+                      echo "Latest Tag: latest"
+                      echo "=== Pipeline Completed ==="
