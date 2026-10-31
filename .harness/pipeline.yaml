@@ -1,0 +1,63 @@
+
+pipeline:
+  name: python-harness-ci-demo
+  identifier: python_harness_ci_demo
+  projectIdentifier: HarnessCICDZerotoHero
+  orgIdentifier: default
+  tags: {}
+
+  properties:
+    ci:
+      codebase:
+        connectorRef: github_python_demo
+        repoName: python-harness-ci-demo
+        build:
+          type: branch
+          spec:
+            branch: main
+
+  stages:
+    - stage:
+        name: Python Build and Docker Push
+        identifier: python_build_docker_push
+        type: CI
+        spec:
+          cloneCodebase: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Cloud
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Install and Test Python
+                  identifier: install_test_python
+                  spec:
+                    shell: Sh
+                    command: |-
+                      set -e
+                      echo "Checking Python"
+                      python3 --version
+
+                      echo "Installing packages"
+                      python3 -m venv /tmp/ci-venv
+                      /tmp/ci-venv/bin/python -m pip install -r requirements.txt pytest
+
+                      echo "Running tests"
+                      /tmp/ci-venv/bin/python -m pytest test_app.py -v
+
+              - step:
+                  type: BuildAndPushDockerRegistry
+                  name: Build and Push Docker
+                  identifier: build_push_docker
+                  spec:
+                    connectorRef: dockerhub
+                    repo: YOUR_DOCKERHUB_USERNAME/python-harness-ci-demo
+                    tags:
+                      - <+pipeline.sequenceId>
+                      - latest
+                    dockerfile: Dockerfile
+                    context: .
