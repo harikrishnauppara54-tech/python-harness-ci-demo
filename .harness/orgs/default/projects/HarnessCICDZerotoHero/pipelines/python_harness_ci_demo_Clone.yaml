@@ -63,18 +63,31 @@ pipeline:
                       /tmp/python-ci-venv/bin/python -c "from app import app; c=app.test_client(); assert c.get('/').status_code == 200; assert c.get('/health').status_code == 200; print('Application verified')"
 
                       echo "=== Python Tests and Verification Passed ==="
-              - step:
-                  type: BuildAndPushDockerRegistry
-                  name: Build and Push Docker Image
-                  identifier: build_push_docker
-                  spec:
-                    connectorRef: dockerhub
-                    repo: hk48/python-harness-ci-demo
-                    tags:
-                      - <+pipeline.sequenceId>
-                      - latest
-                    dockerfile: Dockerfile
-                    context: "."
+              - parallel:
+                  - step:
+                      type: BuildAndPushDockerRegistry
+                      name: Build and Push Docker Image
+                      identifier: build_push_docker
+                      spec:
+                        connectorRef: dockerhub
+                        repo: hk48/python-harness-ci-demo
+                        tags:
+                          - <+pipeline.sequenceId>
+                          - latest
+                        dockerfile: Dockerfile
+                        context: .
+                  - step:
+                      type: Run
+                      name: Run_3
+                      identifier: Run_3
+                      spec:
+                        shell: Sh
+                        command: |-
+                          ls -la 
+                          df -hk
+                          free -m 
+                          top
+                      description: demo
               - step:
                   type: Run
                   name: Display Image Details
