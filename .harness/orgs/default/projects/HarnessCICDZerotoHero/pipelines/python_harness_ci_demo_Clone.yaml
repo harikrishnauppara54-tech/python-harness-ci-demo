@@ -85,8 +85,7 @@ pipeline:
                         command: |-
                           ls -la 
                           df -hk
-                          free -m 
-                          top
+                          free -m
                       description: demo
               - step:
                   type: Run
